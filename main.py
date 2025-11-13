@@ -85,6 +85,37 @@ def background_monitor():
     logger.info("后台监控已停止")
 
 
+def stop_file_watcher():
+    """监控停止文件，触发安全退出"""
+    global _window_manager
+    while _running and not _stop_event.is_set():
+        if os.path.exists(STOP_FILE):
+            logger.info("检测到停止文件，正在退出...")
+            try:
+                os.remove(STOP_FILE)
+            except Exception as e:
+                logger.warning(f"删除停止文件失败: {e}")
+
+            stop_background()
+            if _window_manager:
+                _window_manager.stop()
+            break
+
+        if _stop_event.wait(MONITOR_THREAD_CHECK_INTERVAL):
+            break
+
+
+def _monitor_guard(monitor_thread):
+    """监控后台线程状态，异常退出时触发清理"""
+    global _window_manager
+    monitor_thread.join()
+    if _running:
+        logger.warning("监控线程已停止")
+        stop_background()
+        if _window_manager:
+            _window_manager.stop()
+
+
 def stop_background():
     """停止后台运行"""
     global _running
@@ -120,39 +151,28 @@ def main():
         on_hide_console=hide_console_window,
     )
 
-    # 启动管理窗口
-    window_started = _window_manager.start()
-    if window_started:
-        logger.info("管理窗口已启动，可以通过窗口管理程序")
-    else:
-        logger.warning("管理窗口启动失败，程序将在后台运行")
+    # 在后台线程中启动监控循环
+    monitor_thread = threading.Thread(target=background_monitor, daemon=True)
+    monitor_thread.start()
+
+    # 监控线程守护
+    threading.Thread(
+        target=_monitor_guard, args=(monitor_thread,), daemon=True
+    ).start()
+
+    # 启动停止文件监控
+    stop_file_thread = threading.Thread(target=stop_file_watcher, daemon=True)
+    stop_file_thread.start()
 
     # 隐藏控制台窗口
     if hide_console_window():
         logger.info("控制台窗口已隐藏，程序在后台运行")
 
-    # 在后台线程中启动监控循环
-    monitor_thread = threading.Thread(target=background_monitor, daemon=True)
-    monitor_thread.start()
-
     try:
-        # 主线程保持运行，等待退出信号
-        while _running:
-            # 检查是否有停止文件
-            if os.path.exists(STOP_FILE):
-                logger.info("检测到停止文件，正在退出...")
-                try:
-                    os.remove(STOP_FILE)
-                except Exception as e:
-                    logger.warning(f"删除停止文件失败: {e}")
-                break
-
-            # 检查线程是否还在运行
-            if not monitor_thread.is_alive():
-                logger.warning("监控线程已停止")
-                break
-
-            time.sleep(MONITOR_THREAD_CHECK_INTERVAL)
+        if _window_manager.start():
+            logger.info("管理窗口已关闭，程序将退出")
+        else:
+            logger.warning("管理窗口启动失败，程序将在后台运行")
     except KeyboardInterrupt:
         logger.info("\n收到退出信号，正在安全退出...")
     except Exception as e:
@@ -163,6 +183,7 @@ def main():
             _window_manager.stop()
         # 等待线程结束
         monitor_thread.join(timeout=5)
+        stop_file_thread.join(timeout=5)
         logger.info("程序已退出")
 
 

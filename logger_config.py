@@ -6,49 +6,12 @@
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
-from config import (
-    LOG_DIR,
-    LOG_FILE_PREFIX,
-    LOG_FORMAT,
-    LOG_DATE_FORMAT,
-    LOG_RETENTION_DAYS,
-)
+from config import LOG_DIR, LOG_FILE_PREFIX, LOG_FORMAT, LOG_DATE_FORMAT
 
 
 def _get_log_file_path():
     """构建固定日志文件路径"""
     return os.path.join(LOG_DIR, f"{LOG_FILE_PREFIX}.log")
-
-
-def _prune_old_entries(log_path):
-    """仅保留最近LOG_RETENTION_DAYS天的日志"""
-    if not os.path.exists(log_path):
-        return
-
-    cutoff = datetime.now() - timedelta(days=LOG_RETENTION_DAYS)
-    retained_lines = []
-
-    try:
-        with open(log_path, "r", encoding="utf-8") as log_file:
-            for line in log_file:
-                timestamp_str = line.split(" - ", 1)[0].strip()
-                try:
-                    entry_time = datetime.strptime(timestamp_str, LOG_DATE_FORMAT)
-                    if entry_time >= cutoff:
-                        retained_lines.append(line)
-                except ValueError:
-                    # 如果无法解析时间戳，保留该行以避免丢失关键信息
-                    retained_lines.append(line)
-    except (OSError, UnicodeDecodeError):
-        # 如果读取失败，保留原日志文件
-        return
-
-    try:
-        with open(log_path, "w", encoding="utf-8") as log_file:
-            log_file.writelines(retained_lines)
-    except OSError:
-        pass
 
 
 def setup_logging():
@@ -58,7 +21,12 @@ def setup_logging():
         os.makedirs(LOG_DIR)
 
     log_filename = _get_log_file_path()
-    _prune_old_entries(log_filename)
+    # 每次启动清空旧日志，保证只保留本次运行记录
+    try:
+        with open(log_filename, "w", encoding="utf-8"):
+            pass
+    except OSError as e:
+        raise RuntimeError(f"无法创建日志文件 {log_filename}: {e}")
 
     # 配置日志格式
     log_format = LOG_FORMAT
@@ -72,7 +40,7 @@ def setup_logging():
     logger.handlers.clear()
 
     # 文件处理器（保存到文件）
-    file_handler = logging.FileHandler(log_filename, encoding="utf-8")
+    file_handler = logging.FileHandler(log_filename, mode="w", encoding="utf-8")
     file_handler.setLevel(logging.INFO)
     file_formatter = logging.Formatter(log_format, date_format)
     file_handler.setFormatter(file_formatter)

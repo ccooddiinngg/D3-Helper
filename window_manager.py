@@ -4,7 +4,6 @@ Windows窗口管理模块
 """
 
 import os
-import threading
 import logging
 import time
 import tkinter as tk
@@ -297,29 +296,13 @@ class WindowManager:
             self.root.withdraw()
 
     def start(self):
-        """启动窗口管理器"""
+        """启动窗口管理器（在主线程运行 Tk 事件循环）"""
         try:
-            # 在单独的线程中运行GUI
-            def run_gui():
-                self.create_window()
-                self.root.mainloop()
-
-            gui_thread = threading.Thread(target=run_gui, daemon=True)
-            gui_thread.start()
-
-            # 等待窗口创建
-            timeout = 5
-            elapsed = 0
-            while self.root is None and elapsed < timeout:
-                time.sleep(0.1)
-                elapsed += 0.1
-
-            if self.root:
-                logger.info("管理窗口已启动")
-                return True
-            else:
-                logger.warning("管理窗口启动超时")
-                return False
+            self.create_window()
+            logger.info("管理窗口已启动")
+            self.root.mainloop()
+            logger.info("管理窗口主循环结束")
+            return True
         except Exception as e:
             logger.error(f"无法启动管理窗口: {e}")
             return False

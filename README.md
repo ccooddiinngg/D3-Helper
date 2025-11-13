@@ -84,10 +84,7 @@ run_as_admin.bat
 
 ## 日志文件
 
-所有日志文件保存在 `logs/` 目录下，文件名格式为：
-```
-diablo3_launcher_YYYYMMDD_HHMMSS.log
-```
+程序只使用一个日志文件 `logs/diablo3_launcher.log`，每次启动都会清空旧内容，方便快速查看本次运行的完整记录。
 
 ## 注意事项
 
