@@ -29,6 +29,7 @@ from utils import (
 )
 from window_manager import WindowManager
 from game_launcher import is_diablo_iii_running, launch_diablo_iii
+from rosbot_manager import is_rosbot_running, launch_rosbot_admin
 
 # 启用Windows ANSI转义码支持（用于彩色输出）
 enable_ansi_support()
@@ -56,29 +57,31 @@ pyautogui.PAUSE = PYAUTOGUI_PAUSE
 
 
 def background_monitor():
-    """后台监控循环，检查Diablo III是否运行"""
+    """后台监控循环，检查Diablo III与ROS-BOT是否运行"""
     global _running
     logger.info("后台监控已启动")
 
     while _running and not _stop_event.is_set():
         try:
+            # 检查Diablo III
             if not is_diablo_iii_running():
                 current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-                # 使用红色显示时间
-                red_color = "\033[91m"  # 红色
-                reset_color = "\033[0m"  # 重置颜色
+                red_color = "\033[91m"
+                reset_color = "\033[0m"
                 logger.info(
                     f"[{red_color}{current_time}{reset_color}] Diablo III 未运行，正在尝试启动..."
                 )
                 launch_diablo_iii()
-
-            # 使用事件等待，可以更快响应停止信号
+            # 检查ROS-BOT
+            if not is_rosbot_running():
+                logger.info("ROS-BOT 未运行，尝试自动以管理员权限启动...")
+                launch_rosbot_admin()
+            # 等待
             if _stop_event.wait(MONITOR_CHECK_INTERVAL):
                 break
         except Exception as e:
             logger.error(f"后台监控循环出错: {e}", exc_info=True)
             time.sleep(MONITOR_CHECK_INTERVAL)
-
     logger.info("后台监控已停止")
 
 

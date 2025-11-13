@@ -51,6 +51,9 @@ def find_and_click_image(
                     )
                 return False
 
+    # 记录鼠标初始位置
+    original_pos = pyautogui.position()
+
     # 尝试查找并点击图片
     for img_path in image_paths:
         if description:
@@ -66,6 +69,8 @@ def find_and_click_image(
                     time.sleep(CLICK_DELAY)
                     if description:
                         logger.info(f"已点击{description}。")
+                    # 鼠标返回原始位置
+                    pyautogui.moveTo(original_pos)
                     return True
             except pyautogui.ImageNotFoundException:
                 pass

@@ -14,6 +14,11 @@ D3_PROCESS_NAME = "Diablo III64.exe"
 BATTLE_NET_PROCESS_NAME = "Battle.net.exe"
 BATTLE_NET_EXE_PATH = r"C:\Program Files (x86)\Battle.net\Battle.net.exe"
 
+# ROS-BOT
+ROS_BOT_PROCESS_NAME = "v1BSlRxgGd3cMhoZ1XsXjC4.exe"
+ROS_BOT_EXE_PATH = r"C:\Users\kang_\Downloads\111\Ros-Bot\v1BSlRxgGd3cMhoZ1XsXjC4.exe"  # 请根据实际安装路径修改
+ROS_BOT_START_DELAY = 15  # 秒
+
 # 图片文件配置
 PLAY_BUTTON_IMAGE = "play.png"
 PLAYING_NOW_BUTTON_IMAGE = "playingNow.png"
@@ -42,6 +47,7 @@ LOG_DIR = "logs"
 LOG_FILE_PREFIX = "diablo3_launcher"
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+LOG_RETENTION_DAYS = 7
 
 # PyAutoGUI配置
 PYAUTOGUI_FAILSAFE = True

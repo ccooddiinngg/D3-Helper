@@ -42,6 +42,8 @@ class WindowManager:
         self.root = None
         self.console_visible = False
         self.log_text = None
+        self.runtime_label = None
+        self.start_time = time.time()
 
     def show_console(self):
         """显示控制台窗口"""
@@ -217,27 +219,9 @@ class WindowManager:
         )
         self.console_button.grid(row=0, column=0, padx=5, sticky=tk.W)
 
-        # 打开日志文件夹按钮
-        log_folder_btn = ttk.Button(
-            button_frame, text="打开日志文件夹", command=self.open_log_folder
-        )
-        log_folder_btn.grid(row=0, column=1, padx=5, sticky=tk.W)
-
-        # 打开最新日志按钮
-        latest_log_btn = ttk.Button(
-            button_frame, text="打开最新日志", command=self.open_latest_log
-        )
-        latest_log_btn.grid(row=0, column=2, padx=5, sticky=tk.W)
-
-        # 刷新日志按钮
-        refresh_btn = ttk.Button(
-            button_frame, text="刷新日志", command=self.refresh_log_display
-        )
-        refresh_btn.grid(row=0, column=3, padx=5, sticky=tk.W)
-
         # 退出按钮
         quit_btn = ttk.Button(button_frame, text="退出程序", command=self.quit_app)
-        quit_btn.grid(row=0, column=4, padx=5, sticky=tk.E)
+        quit_btn.grid(row=0, column=1, padx=5, sticky=tk.E)
 
         # 日志显示区域
         log_frame = ttk.LabelFrame(
@@ -256,6 +240,8 @@ class WindowManager:
         # 状态栏
         status_frame = ttk.Frame(main_frame)
         status_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=5)
+        status_frame.columnconfigure(0, weight=1)
+        status_frame.columnconfigure(1, weight=0)
 
         status_label = ttk.Label(
             status_frame,
@@ -263,6 +249,13 @@ class WindowManager:
             foreground="green",
         )
         status_label.grid(row=0, column=0, sticky=tk.W)
+
+        self.runtime_label = ttk.Label(
+            status_frame,
+            text="运行时间: 00:00:00",
+            foreground="blue",
+        )
+        self.runtime_label.grid(row=0, column=1, sticky=tk.E)
 
         # 窗口关闭事件
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -275,6 +268,9 @@ class WindowManager:
 
         # 定期刷新日志（每30秒）
         self.schedule_log_refresh()
+
+        # 启动运行时间刷新
+        self.update_runtime_label()
 
     def on_closing(self):
         """窗口关闭事件处理"""
@@ -337,3 +333,18 @@ class WindowManager:
                 logger.info("管理窗口已关闭")
             except Exception:
                 pass
+
+    def update_runtime_label(self):
+        """更新运行时间显示"""
+        if not self.runtime_label:
+            return
+
+        elapsed = int(time.time() - self.start_time)
+        hours, remainder = divmod(elapsed, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self.runtime_label.config(
+            text=f"运行时间: {hours:02d}:{minutes:02d}:{seconds:02d}"
+        )
+
+        if self.root:
+            self.root.after(1000, self.update_runtime_label)
