@@ -11,13 +11,12 @@ from config import (
     BATTLE_NET_PROCESS_NAME,
     BATTLE_NET_EXE_PATH,
     PLAY_BUTTON_IMAGE,
-    RADIO_BUTTON_IMAGE,
-    OK_BUTTON_IMAGE,
-    CONFIRM_BUTTON_IMAGE,
-    OK_BROWSER_BUTTON_IMAGE,
+    BATTLE_NET_OPTION_IMAGE,
+    BATTLE_NET_LOGIN_IMAGE,
+    NETEASE_SUBMIT_IMAGE,
     BATTLE_NET_START_DELAY,
 )
-from process_manager import is_process_running, find_window_by_title
+from process_manager import is_process_running, focus_process_window
 from image_finder import find_and_click_image
 
 logger = logging.getLogger()
@@ -25,7 +24,7 @@ logger = logging.getLogger()
 
 def launch_battle_net():
     """启动Battle.net客户端"""
-    if is_process_running(BATTLE_NET_PROCESS_NAME):
+    if is_battle_net_running():
         logger.info("Battle.net 正在运行...")
         return True
 
@@ -52,18 +51,20 @@ def launch_battle_net():
 def _handle_battle_net_popups():
     """处理Battle.net启动时的弹窗"""
     # 点击单选按钮
-    find_and_click_image(RADIO_BUTTON_IMAGE, description="单选按钮", check_file=False)
+    find_and_click_image(
+        BATTLE_NET_OPTION_IMAGE, description="单选按钮", check_file=False
+    )
 
     # 点击确认按钮
     find_and_click_image(
-        [OK_BUTTON_IMAGE, CONFIRM_BUTTON_IMAGE],
+        BATTLE_NET_LOGIN_IMAGE,
         description="确认按钮",
         check_file=False,
     )
 
     # 点击浏览器中的确定按钮
     find_and_click_image(
-        OK_BROWSER_BUTTON_IMAGE,
+        NETEASE_SUBMIT_IMAGE,
         description="浏览器中的'确定'按钮",
         check_file=False,
     )
@@ -77,7 +78,9 @@ def launch_diablo_iii():
         return False
 
     # 查找Battle.net窗口
-    battle_net_window = find_window_by_title("Battle.net")
+    battle_net_window = focus_process_window(
+        BATTLE_NET_PROCESS_NAME, title_hint="Battle.net"
+    )
     if not battle_net_window:
         logger.warning("未找到 Battle.net 窗口")
         return False
@@ -96,3 +99,8 @@ def launch_diablo_iii():
 def is_diablo_iii_running():
     """检查Diablo III是否正在运行"""
     return is_process_running(D3_PROCESS_NAME)
+
+
+def is_battle_net_running():
+    """检查Battle.net是否正在运行"""
+    return is_process_running(BATTLE_NET_PROCESS_NAME)

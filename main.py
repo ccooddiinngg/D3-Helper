@@ -4,7 +4,6 @@ Diablo III 自动启动器主程序
 
 import os
 import sys
-import time
 import threading
 import atexit
 import pyautogui
@@ -12,7 +11,6 @@ import logging
 
 from config import (
     APP_NAME,
-    D3_PROCESS_NAME,
     PYAUTOGUI_FAILSAFE,
     PYAUTOGUI_PAUSE,
     MONITOR_CHECK_INTERVAL,
@@ -28,8 +26,14 @@ from utils import (
     hide_console_window,
 )
 from window_manager import WindowManager
-from game_launcher import is_diablo_iii_running, launch_diablo_iii
-from rosbot_manager import is_rosbot_running, launch_rosbot_admin
+from game_launcher import is_diablo_iii_running, is_battle_net_running
+from rosbot_manager import is_rosbot_running
+from service_monitor import ServiceMonitor
+from service_rebooter import (
+    restart_diablo_iii,
+    restart_battle_net,
+    restart_rosbot,
+)
 
 # 启用Windows ANSI转义码支持（用于彩色输出）
 enable_ansi_support()
@@ -42,6 +46,7 @@ logger.info(f"日志文件已创建: {log_file}")
 _running = True
 _stop_event = threading.Event()
 _window_manager = None
+_service_monitors = []
 
 # 检查并请求管理员权限
 if not is_admin():
@@ -56,33 +61,34 @@ pyautogui.FAILSAFE = PYAUTOGUI_FAILSAFE
 pyautogui.PAUSE = PYAUTOGUI_PAUSE
 
 
-def background_monitor():
-    """后台监控循环，检查Diablo III与ROS-BOT是否运行"""
-    global _running
-    logger.info("后台监控已启动")
-
-    while _running and not _stop_event.is_set():
-        try:
-            # 检查Diablo III
-            if not is_diablo_iii_running():
-                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-                red_color = "\033[91m"
-                reset_color = "\033[0m"
-                logger.info(
-                    f"[{red_color}{current_time}{reset_color}] Diablo III 未运行，正在尝试启动..."
-                )
-                launch_diablo_iii()
-            # 检查ROS-BOT
-            if not is_rosbot_running():
-                logger.info("ROS-BOT 未运行，尝试自动以管理员权限启动...")
-                launch_rosbot_admin()
-            # 等待
-            if _stop_event.wait(MONITOR_CHECK_INTERVAL):
-                break
-        except Exception as e:
-            logger.error(f"后台监控循环出错: {e}", exc_info=True)
-            time.sleep(MONITOR_CHECK_INTERVAL)
-    logger.info("后台监控已停止")
+def start_service_monitors():
+    """初始化并启动各服务的后台监控线程"""
+    global _service_monitors
+    _service_monitors = [
+        ServiceMonitor(
+            "Diablo III",
+            is_diablo_iii_running,
+            restart_diablo_iii,
+            MONITOR_CHECK_INTERVAL,
+            _stop_event,
+        ),
+        ServiceMonitor(
+            "Battle.net",
+            is_battle_net_running,
+            restart_battle_net,
+            MONITOR_CHECK_INTERVAL,
+            _stop_event,
+        ),
+        ServiceMonitor(
+            "ROS-BOT",
+            is_rosbot_running,
+            restart_rosbot,
+            MONITOR_CHECK_INTERVAL,
+            _stop_event,
+        ),
+    ]
+    for monitor in _service_monitors:
+        monitor.start()
 
 
 def stop_file_watcher():
@@ -105,22 +111,15 @@ def stop_file_watcher():
             break
 
 
-def _monitor_guard(monitor_thread):
-    """监控后台线程状态，异常退出时触发清理"""
-    global _window_manager
-    monitor_thread.join()
-    if _running:
-        logger.warning("监控线程已停止")
-        stop_background()
-        if _window_manager:
-            _window_manager.stop()
-
-
 def stop_background():
     """停止后台运行"""
     global _running
+    if not _running:
+        return
     _running = False
     _stop_event.set()
+    for monitor in _service_monitors:
+        monitor.stop()
     logger.info("正在停止后台服务...")
 
 
@@ -151,14 +150,8 @@ def main():
         on_hide_console=hide_console_window,
     )
 
-    # 在后台线程中启动监控循环
-    monitor_thread = threading.Thread(target=background_monitor, daemon=True)
-    monitor_thread.start()
-
-    # 监控线程守护
-    threading.Thread(
-        target=_monitor_guard, args=(monitor_thread,), daemon=True
-    ).start()
+    # 启动后台监控
+    start_service_monitors()
 
     # 启动停止文件监控
     stop_file_thread = threading.Thread(target=stop_file_watcher, daemon=True)
@@ -182,7 +175,6 @@ def main():
         if _window_manager:
             _window_manager.stop()
         # 等待线程结束
-        monitor_thread.join(timeout=5)
         stop_file_thread.join(timeout=5)
         logger.info("程序已退出")
 

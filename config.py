@@ -22,10 +22,9 @@ ROS_BOT_START_DELAY = 15  # 秒
 # 图片文件配置
 PLAY_BUTTON_IMAGE = "play.png"
 PLAYING_NOW_BUTTON_IMAGE = "playingNow.png"
-RADIO_BUTTON_IMAGE = "radiobutton.png"
-OK_BUTTON_IMAGE = "ok.png"
-CONFIRM_BUTTON_IMAGE = "confirm.png"
-OK_BROWSER_BUTTON_IMAGE = "ok_browser.png"
+BATTLE_NET_OPTION_IMAGE = "battle.net_option.png"
+BATTLE_NET_LOGIN_IMAGE = "battle.net_login.png"
+NETEASE_SUBMIT_IMAGE = "netease_submit.png"
 
 # 图片查找配置
 IMAGE_SEARCH_MAX_ATTEMPTS = 10

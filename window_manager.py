@@ -43,6 +43,8 @@ class WindowManager:
         self.log_text = None
         self.runtime_label = None
         self.start_time = time.time()
+        self._log_refresh_job = None
+        self._runtime_update_job = None
 
     def show_console(self):
         """显示控制台窗口"""
@@ -273,15 +275,16 @@ class WindowManager:
 
     def on_closing(self):
         """窗口关闭事件处理"""
-        # 最小化到系统托盘而不是关闭
-        self.root.iconify()
+        self.quit_app()
 
     def schedule_log_refresh(self):
         """安排定期刷新日志"""
         self.refresh_log_display()
         # 定期刷新
-        if self.root:
-            self.root.after(LOG_REFRESH_INTERVAL * 1000, self.schedule_log_refresh)
+        if self.root and self.root.winfo_exists():
+            self._log_refresh_job = self.root.after(
+                LOG_REFRESH_INTERVAL * 1000, self.schedule_log_refresh
+            )
 
     def show_window(self):
         """显示窗口"""
@@ -309,13 +312,20 @@ class WindowManager:
 
     def stop(self):
         """停止窗口管理器"""
-        if self.root:
-            try:
+        if not self.root:
+            return
+
+        self._cancel_scheduled_tasks()
+
+        try:
+            if self.root.winfo_exists():
                 self.root.quit()
                 self.root.destroy()
                 logger.info("管理窗口已关闭")
-            except Exception:
-                pass
+        except Exception as e:
+            logger.warning(f"关闭管理窗口时出现问题: {e}")
+        finally:
+            self.root = None
 
     def update_runtime_label(self):
         """更新运行时间显示"""
@@ -330,4 +340,21 @@ class WindowManager:
         )
 
         if self.root:
-            self.root.after(1000, self.update_runtime_label)
+            self._runtime_update_job = self.root.after(
+                1000, self.update_runtime_label
+            )
+
+    def _cancel_scheduled_tasks(self):
+        """取消所有已安排的 after 任务"""
+        if not self.root:
+            return
+
+        for job_attr in ("_log_refresh_job", "_runtime_update_job"):
+            job_id = getattr(self, job_attr, None)
+            if job_id:
+                try:
+                    self.root.after_cancel(job_id)
+                except Exception:
+                    pass
+                finally:
+                    setattr(self, job_attr, None)
